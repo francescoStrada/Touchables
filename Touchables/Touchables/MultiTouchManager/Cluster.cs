@@ -28,6 +28,10 @@ namespace Touchables.MultiTouchManager
 
         #region Constructors
 
+        /// <summary>
+        /// Creates a Cluster instance from a single TouchInput
+        /// </summary>
+        /// <param name="point"></param>
         public Cluster(TouchInput point)
         {
             this.AddPoint(point.Id);
@@ -35,6 +39,11 @@ namespace Touchables.MultiTouchManager
             this._centroid = point.Position;
             _state = ClusterState.Invalid;
         }
+
+        /// <summary>
+        /// Cretaes a Cluster instance from a list of List of InputTouch
+        /// </summary>
+        /// <param name="touchPoints"></param>
         public Cluster(List<TouchInput> touchPoints)
         {
             foreach (TouchInput t in touchPoints)
@@ -42,9 +51,12 @@ namespace Touchables.MultiTouchManager
                 _pointsIds.Add(t.Id);
                 _points.Add(t.Id, t);
             }
+
             UpdateCentroid();
             this._hashId = ClusterUtils.GetPointsHash(_pointsIds.ToArray<int>());
+
             if (_pointsIds.Count == 4)
+                //It is a new cluster of 4 points and requires to be identified
                 this._state = ClusterState.Unidentified;
             else
                 this._state = ClusterState.Invalid;
@@ -56,6 +68,9 @@ namespace Touchables.MultiTouchManager
 
         #region Properties
 
+        /// <summary>
+        /// String Hash uniquely identifing the Cluster
+        /// </summary>
         public String Hash
         {
             get
@@ -63,7 +78,10 @@ namespace Touchables.MultiTouchManager
                 return _hashId;
             }
         }
-
+        
+        /// <summary>
+        /// Cluster centroid
+        /// </summary>
         public Vector2 Centroid
         {
             get
@@ -72,6 +90,9 @@ namespace Touchables.MultiTouchManager
             }
         }
 
+        /// <summary>
+        /// Previously identified cancelled cluster hash  
+        /// </summary>
         public String CancelledClusterHash
         {
             get
@@ -80,6 +101,9 @@ namespace Touchables.MultiTouchManager
             }
         }
 
+        /// <summary>
+        /// Points ids which were cancelled from an identified cluster
+        /// </summary>
         public HashSet<int> CancelledPointIds
         {
             get
@@ -88,6 +112,9 @@ namespace Touchables.MultiTouchManager
             }
         }
 
+        /// <summary>
+        /// TouchInput points present in cluster
+        /// </summary>
         public Dictionary<int, TouchInput> Points
         {
             get
@@ -96,6 +123,9 @@ namespace Touchables.MultiTouchManager
             }
         }
 
+        /// <summary>
+        /// TouchInput ids present in cluster
+        /// </summary>
         public HashSet<int> PointsIds
         {
             get
@@ -104,6 +134,9 @@ namespace Touchables.MultiTouchManager
             }
         }
 
+        /// <summary>
+        /// Current cluster state
+        /// </summary>
         public ClusterState State
         {
             get
@@ -252,16 +285,34 @@ namespace Touchables.MultiTouchManager
         #endregion        
     }
 
+    /// <summary>
+    /// All possible states a Cluster can be in
+    /// </summary>
     public enum ClusterState
     {
+        /// <summary>
+        /// Cluster has reached 4 points and need to be Identified by TokenManager
+        /// </summary>
         Unidentified,
 
+        /// <summary>
+        /// Cluster has succesfully been identified by TokenManager
+        /// </summary>
         Identidied,
 
+        /// <summary>
+        /// Points in identified Cluster were updated
+        /// </summary>
         Updated,
 
+        /// <summary>
+        /// One ore more points were removed from an Identified Cluster
+        /// </summary>
         Cancelled,
 
+        /// <summary>
+        /// A cluster in an unspecific state, mostly composed of finger touch points
+        /// </summary>
         Invalid
     }
 }
