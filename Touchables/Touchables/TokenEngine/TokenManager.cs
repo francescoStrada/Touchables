@@ -346,7 +346,7 @@ namespace Touchables.TokenEngine
         {
             foreach (Delegate subscriber in subscribers)
             {
-                IApplicationToken applicationToken = subscriber.Target as IApplicationToken;
+                ApplicationToken applicationToken = subscriber.Target as ApplicationToken;
                 int subscriberTokenClass = applicationToken.TokenClass;
 
                 if (invokerTokenClass == subscriberTokenClass)
