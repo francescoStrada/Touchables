@@ -38,6 +38,8 @@ namespace Touchables.MultiTouchManager
         public event EventHandler<ClusterUpdateEventArgs> ClustersMovedEvent;
         public event EventHandler<ClusterUpdateEventArgs> ClustersCancelledEvent;
 
+        public event EventHandler<ClustersUpdateEventArgs> ClustersUpdateEvent;
+
         #endregion
 
         #region Public Properties
@@ -346,22 +348,25 @@ namespace Touchables.MultiTouchManager
 
                 CheckClustersUpdated();
 
-                
+                //THis part handles all cluster events seprarately
+                //if (IdentifiedClustersCancelled.Count > 0)
+                //    OnClustersCancelledEvent(new ClusterUpdateEventArgs("Moved cluster request", IdentifiedClustersCancelled.Values.ToList()));
 
-                if (IdentifiedClustersCancelled.Count > 0)
-                    OnClustersCancelledEvent(new ClusterUpdateEventArgs("Moved cluster request", IdentifiedClustersCancelled.Values.ToList()));
+                //if (IdentifiedClustersMoved.Count > 0)
+                //{
+                //    Profiler.BeginSample("------ClusterManager : Cluster Moved Event");
+                //    OnClustersMovedEvent(new ClusterUpdateEventArgs("Moved cluster request", IdentifiedClustersMoved));
+                //    Profiler.EndSample();
+                //}
 
-                if (IdentifiedClustersMoved.Count > 0)
-                {
-                    Profiler.BeginSample("------ClusterManager : Cluster Moved Event");
-                    OnClustersMovedEvent(new ClusterUpdateEventArgs("Moved cluster request", IdentifiedClustersMoved));
-                    Profiler.EndSample();
-                }
+
+                //if (ClustersToIdentify.Count > 0)
+                //    OnClusterToIdentifyEvent(new ClusterUpdateEventArgs("Identification request", ClustersToIdentify));
+
+                if (ClustersToIdentify.Count > 0 || IdentifiedClustersMoved.Count > 0 || IdentifiedClustersCancelled.Count > 0)
+                    OnClustersUpdateEvent(new ClustersUpdateEventArgs(ClustersToIdentify, IdentifiedClustersMoved, IdentifiedClustersCancelled.Values.ToList()));
                     
-
-                if (ClustersToIdentify.Count > 0)
-                    OnClusterToIdentifyEvent(new ClusterUpdateEventArgs("Identification request", ClustersToIdentify));
-
+                
                 
                 //Get points which are touches and not markers
                 InputManager.SetFingersCancelled(InternalTouches.CancelledTouchBuffer.ToArray());
@@ -460,6 +465,22 @@ namespace Touchables.MultiTouchManager
 
         }
 
+       //This manages all cluster events simultaneously
+        private void OnClustersUpdateEvent(ClustersUpdateEventArgs e)
+        {
+            EventHandler<ClustersUpdateEventArgs> handler;
+
+            lock (ClusterUpdateLock)
+            {
+                handler = ClustersUpdateEvent;
+            }
+
+            if (handler != null)
+            {
+                handler(this, e);
+            }
+        }
+
         #endregion
     }
 
@@ -467,19 +488,39 @@ namespace Touchables.MultiTouchManager
 
     internal class ClusterUpdateEventArgs : EventArgs
     {
-        internal string EventMsg { get { return _eventMsg; } }
-
+        
         private List<Cluster> _updatedClusters = new List<Cluster>();
         private string _eventMsg;
+
         internal ClusterUpdateEventArgs(string msg, List<Cluster> clusters)
         {
-            this._eventMsg = msg;
-            this._updatedClusters = clusters;
+            _eventMsg = msg;
+            _updatedClusters = clusters;
         }
+
+        internal string EventMsg { get { return _eventMsg; } }
 
         internal List<Cluster> GetClusters()
         {
             return _updatedClusters;
+        }
+    }
+
+    internal class ClustersUpdateEventArgs : EventArgs
+    {
+        private List<Cluster> _clustersToIdentify = new List<Cluster>();
+        private List<Cluster> _clustersIdentifiedMoved = new List<Cluster>();
+        private List<Cluster> _clustersIdentifiedCancelled = new List<Cluster>();
+
+        public List<Cluster> ClustersToIdentify { get { return _clustersToIdentify; } }
+        public List<Cluster> ClustersIdentifiedMoved { get { return _clustersIdentifiedMoved; } }
+        public List<Cluster> ClustersIdentifiedCancelled { get { return _clustersIdentifiedCancelled; } }
+
+        internal ClustersUpdateEventArgs(List<Cluster> cToIdentify, List<Cluster> cIdentifiedMoved, List<Cluster> cIdentifiedCancelled)
+        {
+            _clustersToIdentify = cToIdentify;
+            _clustersIdentifiedMoved = cIdentifiedMoved;
+            _clustersIdentifiedCancelled = cIdentifiedCancelled;
         }
     }
 }
