@@ -22,7 +22,7 @@ namespace Touchables.TokenEngine
         private HashSet<int> tokenIds = new HashSet<int>();
 
         private List<InternalToken> succesfullyIdentifiedTokens = new List<InternalToken>(2);
-        private List<InternalToken> failedIdentifiedTokens = new List<InternalToken>(2);
+        private List<Cluster> failedIdentifiedCluster = new List<Cluster>(2);
         private List<InternalToken> identifiedTokensMoved = new List<InternalToken>(2);
         private List<InternalToken> identifiedTokensCancelled = new List<InternalToken>(2);
 
@@ -201,7 +201,7 @@ namespace Touchables.TokenEngine
                 tokenStatistics.TokenIdentification(false);
 
                 //Add token to local buffer
-                failedIdentifiedTokens.Add(token);
+                failedIdentifiedCluster.Add(cluster);
             }
 
         }
@@ -259,10 +259,10 @@ namespace Touchables.TokenEngine
                     OnScreenTokenUpdatedEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
             }
 
-            foreach(InternalToken token in failedIdentifiedTokens)
+            foreach(Cluster cluster in failedIdentifiedCluster)
             {
                 //Cluser Identification failed, need to report back to Cluster Manager
-                OnTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(token.HashId, false));
+                OnTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(cluster.Hash, false));
             }
 
             foreach(InternalToken token in succesfullyIdentifiedTokens)
@@ -277,7 +277,7 @@ namespace Touchables.TokenEngine
             //Reset all buffers
             identifiedTokensCancelled.Clear();
             identifiedTokensMoved.Clear();
-            failedIdentifiedTokens.Clear();
+            failedIdentifiedCluster.Clear();
             succesfullyIdentifiedTokens.Clear();
 
         }
