@@ -59,13 +59,14 @@ namespace Touchables.MultiTouchManager
         {
             InternalTouches.ResetBuffers();
 
+            //PROFILER
             Profiler.BeginSample("---MultiTouch Manager: Input Buffers Update");
             foreach (Touch t in Input.touches)
             {
                 InternalTouches.UpdateTouchInput(t);
-
             }
             Profiler.EndSample();
+            //END PROFILER
 
             if (InternalTouches.Updated())
             {

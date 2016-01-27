@@ -21,6 +21,11 @@ namespace Touchables.TokenEngine
         private Dictionary<string, InternalToken> tokens = new Dictionary<string, InternalToken>();
         private HashSet<int> tokenIds = new HashSet<int>();
 
+        private List<InternalToken> succesfullyIdentifiedTokens = new List<InternalToken>(2);
+        private List<Cluster> failedIdentifiedCluster = new List<Cluster>(2);
+        private List<InternalToken> identifiedTokensMoved = new List<InternalToken>(2);
+        private List<InternalToken> identifiedTokensCancelled = new List<InternalToken>(2);
+
         internal static TokenType CurrentTokenType;
 
         readonly object TokenCallBackLock = new object();
@@ -76,9 +81,11 @@ namespace Touchables.TokenEngine
 
         public TokenManager Initialize()
         {
-            ClusterManager.Instance.ClustersToIdentifyEvent += OnClustersToIdentify;
-            ClusterManager.Instance.ClustersMovedEvent += OnClustersMoved;
-            ClusterManager.Instance.ClustersCancelledEvent += OnClustersCancelled;
+            //ClusterManager.Instance.ClustersToIdentifyEvent += OnClustersToIdentify;
+            //ClusterManager.Instance.ClustersMovedEvent += OnClustersMoved;
+            //ClusterManager.Instance.ClustersCancelledEvent += OnClustersCancelled;
+
+            ClusterManager.Instance.ClustersUpdateEvent += OnClustersUpdated;
 
             ClusterManager.Instance.SetClusterDistThreshold(CurrentTokenType.TokenDiagonalPX);
 
@@ -89,9 +96,11 @@ namespace Touchables.TokenEngine
 
         public TokenManager Disable()
         {
-            ClusterManager.Instance.ClustersToIdentifyEvent -= OnClustersToIdentify;
-            ClusterManager.Instance.ClustersMovedEvent -= OnClustersMoved;
-            ClusterManager.Instance.ClustersCancelledEvent -= OnClustersCancelled;
+            //ClusterManager.Instance.ClustersToIdentifyEvent -= OnClustersToIdentify;
+            //ClusterManager.Instance.ClustersMovedEvent -= OnClustersMoved;
+            //ClusterManager.Instance.ClustersCancelledEvent -= OnClustersCancelled;
+
+            ClusterManager.Instance.ClustersUpdateEvent -= OnClustersUpdated;
 
             tokenStatistics.ResetMetrics();
 
@@ -154,104 +163,171 @@ namespace Touchables.TokenEngine
                 return false;
         }
 
+        private void IdentifyCluster(Cluster cluster)
+        {
+            //TODO this function requires updates
+            Profiler.BeginSample("---TokenEngine : Token Identification");
+            InternalToken token = TokenIdentification.Instance.IdentifyCluster(cluster);
+            Profiler.EndSample();
+            if (token != null)
+            {
+                //Statistics
+                tokenStatistics.TokenIdentification(true);
+
+                //Calculate TokenClass
+                Profiler.BeginSample("---TokenEngine: Class LUT");
+                token.ComputeTokenClass(ClassComputeRefSystem, ClassComputeDimension);
+                Profiler.EndSample();
+
+                tokenStatistics.TokenClassRecognition(token.Class);
+
+                //Cluster Identification was succesfull
+
+                //Set Token ID
+                token.SetTokenId(GetFirstAvailableTokenId());
+                tokenIds.Add(token.Id);
+
+                //Add Token to internal List
+                tokens.Add(token.HashId, token);
+
+                //Add Token To Global List
+                InputManager.AddToken(new Token(token, ContinuousMeanSquare));
+
+                //Add Token TO local buffer
+                succesfullyIdentifiedTokens.Add(token);
+            }
+            else
+            {
+                tokenStatistics.TokenIdentification(false);
+
+                //Add token to local buffer
+                failedIdentifiedCluster.Add(cluster);
+            }
+
+        }
+
+        private void UpdateClusterMoved(Cluster cluster)
+        {
+            //Update internally the token
+            InternalToken internalToken;
+            if (tokens.TryGetValue(cluster.Hash, out internalToken))
+            {
+                internalToken.Update(cluster);
+                tokens.Remove(cluster.Hash);
+                tokens.Add(internalToken.HashId, internalToken);
+
+                //Update Global Token
+                InputManager.GetToken(internalToken.Id).UpdateToken(internalToken, ContinuousMeanSquare);
+
+                //Add token to local buffer
+                identifiedTokensMoved.Add(internalToken);
+            }
+        }
+
+        private void CancelCluster(Cluster cluster)
+        {
+            //Cancel cluster according to point
+            //Here is very delicate because it must be considered also the possibility of not removing the token untill not all points have been removed
+            InternalToken token;
+            if (tokens.TryGetValue(cluster.CancelledClusterHash, out token))
+            {
+                tokenIds.Remove(token.Id);
+                InputManager.RemoveToken(token.Id);
+
+                tokens.Remove(cluster.CancelledClusterHash);
+
+                //Add token to local buffer
+                identifiedTokensCancelled.Add(token);
+            }
+        }
+
+        private void DispatchTokenEventsFromBuffers()
+        {
+            foreach(InternalToken token in identifiedTokensCancelled)
+            {
+                //Launch CallBack to CM
+                OnTokenCancelledEvent(new InternalTokenCancelledEventArgs(token.HashId));
+
+                //Lauch Application Token Cancelled
+                OnTokenRemovedFromScreenEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
+            }
+
+            foreach(InternalToken token in identifiedTokensMoved)
+            {
+                //Check deltas in order to fire or not Events
+                if (UpdateGreaterThanThreshold(token))
+                    OnScreenTokenUpdatedEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
+            }
+
+            foreach(Cluster cluster in failedIdentifiedCluster)
+            {
+                //Cluser Identification failed, need to report back to Cluster Manager
+                OnTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(cluster.Hash, false));
+            }
+
+            foreach(InternalToken token in succesfullyIdentifiedTokens)
+            {
+                //Fire event token identified
+                OnTokenPlacedOnScreenEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
+
+                //Notify ClusterManager cluster has been identified
+                OnTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(token.HashId, true));
+            }
+
+            //Reset all buffers
+            identifiedTokensCancelled.Clear();
+            identifiedTokensMoved.Clear();
+            failedIdentifiedCluster.Clear();
+            succesfullyIdentifiedTokens.Clear();
+
+        }
         #endregion
 
         #region Event Handlers
 
-        private void OnClustersToIdentify(object sender, ClusterUpdateEventArgs e)
+        //private void OnClustersToIdentify(object sender, ClusterUpdateEventArgs e)
+        //{
+        //    foreach (Cluster cluster in e.GetClusters())
+        //    {
+        //        IdentifyCluster(cluster);
+        //    }
+        //}
+
+        //private void OnClustersMoved(object sender, ClusterUpdateEventArgs e)
+        //{
+        //    foreach (Cluster cluster in e.GetClusters())
+        //    {
+        //        UpdateClusterMoved(cluster);
+        //    }
+        //}
+
+        //private void OnClustersCancelled(object sender, ClusterUpdateEventArgs e)
+        //{
+        //    foreach (Cluster cluster in e.GetClusters())
+        //    {
+        //        CancelCluster(cluster);
+
+        //    }
+        //}
+
+        private void OnClustersUpdated(object sender, ClustersUpdateEventArgs e)
         {
-            foreach (Cluster cluster in e.GetClusters())
+            foreach(Cluster c in e.ClustersToIdentify)
             {
-                //TODO this function requires updates
-                Profiler.BeginSample("---TokenEngine : Token Identification");
-                InternalToken token = TokenIdentification.Instance.IdentifyCluster(cluster);
-                Profiler.EndSample();
-                if (token != null)
-                {
-                    //Statistics
-                    tokenStatistics.TokenIdentification(true);
-
-                    //Calculate TokenClass
-                    Profiler.BeginSample("---TokenEngine: Class LUT");
-                    token.ComputeTokenClass(ClassComputeRefSystem, ClassComputeDimension);
-                    Profiler.EndSample();
-
-                    tokenStatistics.TokenClassRecognition(token.Class);
-
-                    //Cluster Identification was succesfull
-                    
-                    //Set Token ID
-                    token.SetTokenId(GetFirstAvailableTokenId());
-                    tokenIds.Add(token.Id);
-
-                    //Add Token to internal List
-                    tokens.Add(token.HashId, token);
-
-                    //Add Token To Global List
-                    InputManager.AddToken(new Token(token, ContinuousMeanSquare));
-
-                    //Notify ClusterManager cluster has been identified
-                    OnTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(token.HashId, true));
-
-                    //Fire event token identified
-                    OnTokenPlacedOnScreenEvent(new ApplicationTokenEventArgs(new Token(token,ContinuousMeanSquare)));
-
-                }
-                else
-                {
-                    tokenStatistics.TokenIdentification(false);
-                    //Cluser Identification failed, need to report back to Cluster Manager
-                    OnTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(cluster.Hash, false));
-
-                }
+                IdentifyCluster(c);
             }
-        }
 
-        private void OnClustersMoved(object sender, ClusterUpdateEventArgs e)
-        {
-            foreach (Cluster cluster in e.GetClusters())
+            foreach(Cluster c in e.ClustersIdentifiedMoved)
             {
-                //Update internally the token
-                InternalToken internalToken;
-                if (tokens.TryGetValue(cluster.Hash, out internalToken))
-                {
-                    internalToken.Update(cluster);
-                    tokens.Remove(cluster.Hash);
-                    tokens.Add(internalToken.HashId, internalToken);
-
-                    //Update Global Token
-                    InputManager.GetToken(internalToken.Id).UpdateToken(internalToken,ContinuousMeanSquare);
-
-                    //Check deltas in order to fire or not Events
-                    if (UpdateGreaterThanThreshold(internalToken))
-                        OnScreenTokenUpdatedEvent(new ApplicationTokenEventArgs(new Token(internalToken,ContinuousMeanSquare)));
-
-                }
+                UpdateClusterMoved(c);
             }
-        }
 
-        private void OnClustersCancelled(object sender, ClusterUpdateEventArgs e)
-        {
-            foreach (Cluster cluster in e.GetClusters())
+            foreach(Cluster c in e.ClustersIdentifiedCancelled)
             {
-                //Cancel cluster according to point
-                //Here is very delicate because it must be considered also the possibility of not removing the token untill not all points have been removed
-                InternalToken token;
-                if (tokens.TryGetValue(cluster.CancelledClusterHash, out token))
-                {
-                    tokenIds.Remove(token.Id);
-                    InputManager.RemoveToken(token.Id);
-
-                    tokens.Remove(cluster.CancelledClusterHash);
-
-                    //Launch CallBack to CM
-                    OnTokenCancelledEvent(new InternalTokenCancelledEventArgs(cluster.Hash));
-
-                    //Lauch Application Token Cancelled
-                    OnTokenRemovedFromScreenEvent(new ApplicationTokenEventArgs(new Token(token,ContinuousMeanSquare)));
-                }
-
+                CancelCluster(c);
             }
+
+            DispatchTokenEventsFromBuffers();
         }
 
         #endregion

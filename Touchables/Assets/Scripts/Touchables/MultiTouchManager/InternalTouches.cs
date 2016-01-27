@@ -29,6 +29,7 @@ namespace Touchables.MultiTouchManager
         private static bool updateEndedTouches = false;
         private static bool updateCanceledTouches = false;
         #endregion
+        
         //TODO make sure lists are never null in case they can be empty
         #region Public Properties
 
