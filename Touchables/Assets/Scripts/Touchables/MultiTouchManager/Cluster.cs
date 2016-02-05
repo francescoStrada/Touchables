@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Touchables.Utils;
+using System.Text;
 
 namespace Touchables.MultiTouchManager
 {
@@ -53,7 +54,7 @@ namespace Touchables.MultiTouchManager
             }
 
             UpdateCentroid();
-            this._hashId = ClusterUtils.GetPointsHash(_pointsIds.ToArray<int>());
+            this._hashId = GetPointsHash(_pointsIds.ToArray<int>());
 
             if (_pointsIds.Count == 4)
                 //It is a new cluster of 4 points and requires to be identified
@@ -155,7 +156,7 @@ namespace Touchables.MultiTouchManager
             _pointsIds.Add(touchId);
             _points.Add(touchId, touch);
             UpdateCentroid();
-            this._hashId = ClusterUtils.GetPointsHash(_pointsIds.ToArray<int>());
+            this._hashId = GetPointsHash(_pointsIds.ToArray<int>());
 
             if (_pointsIds.Count == 4)
                 this._state = ClusterState.Unidentified;
@@ -206,7 +207,7 @@ namespace Touchables.MultiTouchManager
                     _state = ClusterState.Invalid;
 
                 //Update new Hash
-                this._hashId = ClusterUtils.GetPointsHash(_pointsIds.ToArray<int>());
+                this._hashId = GetPointsHash(_pointsIds.ToArray<int>());
                 //       }
                 //        else
 
@@ -241,7 +242,7 @@ namespace Touchables.MultiTouchManager
             else
                 _state = ClusterState.Invalid;
 
-            this._hashId = ClusterUtils.GetPointsHash(_pointsIds.ToArray<int>());
+            this._hashId = GetPointsHash(_pointsIds.ToArray<int>());
 
             return this;
         }
@@ -283,6 +284,23 @@ namespace Touchables.MultiTouchManager
 
         }
         #endregion        
+
+        /// <summary>
+        /// Given an Array of ints, reppresenting touch points ids, it formats them in a string like #x#y... unique Hash
+        /// </summary>
+        /// <param name="pointIds">Array of touch point ids</param>
+        /// <returns>Hash string</returns>
+        private String GetPointsHash(int[] pointIds)
+        {
+            StringBuilder hashString = new StringBuilder();
+            hashString.Remove(0, hashString.Length);
+            for (int i = 0; i < pointIds.Length; i++)
+            {
+                hashString.Append("#");
+                hashString.Append(pointIds[i]);
+            }
+            return hashString.ToString();
+        }
     }
 
     /// <summary>

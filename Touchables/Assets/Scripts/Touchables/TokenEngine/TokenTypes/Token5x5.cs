@@ -3,8 +3,6 @@
  */
 
 using System.Collections.Generic;
-using Touchables.Utils;
-using Touchables.Utils.Attributes;
 
 namespace Touchables.TokenEngine.TokenTypes
 {
@@ -12,17 +10,17 @@ namespace Touchables.TokenEngine.TokenTypes
     {
         internal override float SetOriginToAxisDistance()
         {
-            return ScreenUtils.CmToPixels(TokenAttributes.TOKEN_5X5_ORIGIN_TO_AXIS_MARKERS_DST);
+            return TokensEngine.CmToPixels(TokenAttributes.TOKEN_5X5_ORIGIN_TO_AXIS_MARKERS_DST);
         }
 
         internal override float SetOriginToCenterDistance()
         {
-            return ScreenUtils.CmToPixels(TokenAttributes.TOKEN_5X5_ORIGIN_TO_CENTER_DST);
+            return TokensEngine.CmToPixels(TokenAttributes.TOKEN_5X5_ORIGIN_TO_CENTER_DST);
         }
 
         internal override float SetDataMarkerOriginPosition()
         {
-            return ScreenUtils.CmToPixels(TokenAttributes.TOKEN_5X5_DATA_MARKER_ORIGIN);
+            return TokensEngine.CmToPixels(TokenAttributes.TOKEN_5X5_DATA_MARKER_ORIGIN);
         }
 
         internal override float SetDataMarkerOriginPositionCM()
@@ -32,7 +30,7 @@ namespace Touchables.TokenEngine.TokenTypes
 
         internal override float SetTokenDiagonal()
         {
-            return ScreenUtils.CmToPixels(TokenAttributes.TOKEN_5X5_DIAGONAL);
+            return TokensEngine.CmToPixels(TokenAttributes.TOKEN_5X5_DIAGONAL);
         }
 
         internal override Dictionary<TokenDataGridCoord, int> InitiliazeTokenClassLUT()

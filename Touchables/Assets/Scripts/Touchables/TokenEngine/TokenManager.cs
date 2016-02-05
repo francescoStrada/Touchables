@@ -31,7 +31,7 @@ namespace Touchables.TokenEngine
         readonly object TokenCallBackLock = new object();
 
         private ClassComputeReferenceSystem ClassComputeRefSystem;
-        private ClassComputeDimension ClassComputeDimension;
+        private ClassComputeDimension ComputeDimension;
 
         private float TokenUpdateTranslationThreshold;
         private float TokenUpdateRotationThreshold;
@@ -79,64 +79,53 @@ namespace Touchables.TokenEngine
 
         #region Public Methods
 
-        public TokenManager Initialize()
+        public void Initialize()
         {
-            //ClusterManager.Instance.ClustersToIdentifyEvent += OnClustersToIdentify;
-            //ClusterManager.Instance.ClustersMovedEvent += OnClustersMoved;
-            //ClusterManager.Instance.ClustersCancelledEvent += OnClustersCancelled;
-
-            ClusterManager.Instance.ClustersUpdateEvent += OnClustersUpdated;
-
-            ClusterManager.Instance.SetClusterDistThreshold(CurrentTokenType.TokenDiagonalPX);
-
             tokenStatistics = TokenStatistics.Instance;
 
-            return _instance;
+            switch (TokensEngine.Pars.Type)
+            {
+                case TokensEngineProperties.TOKEN3x3:
+                    CurrentTokenType = (new Token3x3());
+                    break;
+                case TokensEngineProperties.TOKEN4x4:
+                    CurrentTokenType = (new Token4x4());
+                    break;
+                case TokensEngineProperties.TOKEN5x5:
+                    CurrentTokenType = (new Token5x5());
+                    break;
+            }
+
+            ClusterManager.Instance.Initialize();
+            ClusterManager.Instance.SetClusterDistThreshold(CurrentTokenType.TokenDiagonalPX);
+
+            if (TokensEngine.Pars.MeanSquare)
+                ClassComputeRefSystem = ClassComputeReferenceSystem.MeanSqure;
+            else
+                ClassComputeRefSystem = ClassComputeReferenceSystem.Regular;
+
+            ContinuousMeanSquare = TokensEngine.Pars.ContinuousMeanSquare;
+
+            if (TokensEngine.Pars.ComputePixels == TokensEngineProperties.PIXELS)
+                ComputeDimension = ClassComputeDimension.Pixels;
+            else
+                ComputeDimension = ClassComputeDimension.Centimeters;
+
+
+            TokenUpdateTranslationThreshold = (TokensEngine.Pars.TranslationThr);
+            TokenUpdateRotationThreshold = (TokensEngine.Pars.RotationThr);
+
+            // listen to updated cluster events
+            ClusterManager.Instance.ClustersUpdateEvent += OnClustersUpdated;
         }
 
-        public TokenManager Disable()
+        public void Disable()
         {
-            //ClusterManager.Instance.ClustersToIdentifyEvent -= OnClustersToIdentify;
-            //ClusterManager.Instance.ClustersMovedEvent -= OnClustersMoved;
-            //ClusterManager.Instance.ClustersCancelledEvent -= OnClustersCancelled;
-
+            ClusterManager.Instance.Disable();
             ClusterManager.Instance.ClustersUpdateEvent -= OnClustersUpdated;
 
             tokenStatistics.ResetMetrics();
 
-            return _instance;
-
-        }
-
-        public void SetApplicationTokenType(TokenType t)
-        {
-            CurrentTokenType = t;
-        }
-
-        public void SetClassComputeReferenceSystem(bool SetMeanSquare)
-        {
-            if (SetMeanSquare)
-                ClassComputeRefSystem = ClassComputeReferenceSystem.MeanSqure;
-            else
-                ClassComputeRefSystem = ClassComputeReferenceSystem.Regular;
-        }
-
-        public void SetClassComputeDimensions(bool SetPixels)
-        {
-            if (SetPixels)
-                ClassComputeDimension = ClassComputeDimension.Pixels;
-            else
-                ClassComputeDimension = ClassComputeDimension.Centimeters;
-        }
-
-        public void SetTokenUpdateTranslationThr(float value)
-        {
-            TokenUpdateTranslationThreshold = value;
-        }
-
-        public void SetTokenUpdateRotationThr(float value)
-        {
-            TokenUpdateRotationThreshold = value;
         }
 
         #endregion
@@ -176,7 +165,7 @@ namespace Touchables.TokenEngine
 
                 //Calculate TokenClass
                 Profiler.BeginSample("---TokenEngine: Class LUT");
-                token.ComputeTokenClass(ClassComputeRefSystem, ClassComputeDimension);
+                token.ComputeTokenClass(ClassComputeRefSystem, ComputeDimension);
                 Profiler.EndSample();
 
                 tokenStatistics.TokenClassRecognition(token.Class);
@@ -246,32 +235,32 @@ namespace Touchables.TokenEngine
             foreach(InternalToken token in identifiedTokensCancelled)
             {
                 //Launch CallBack to CM
-                OnTokenCancelledEvent(new InternalTokenCancelledEventArgs(token.HashId));
+                RaiseTokenCancelledEvent(new InternalTokenCancelledEventArgs(token.HashId));
 
                 //Lauch Application Token Cancelled
-                OnTokenRemovedFromScreenEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
+                RaiseTokenRemovedFromScreenEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
             }
 
             foreach(InternalToken token in identifiedTokensMoved)
             {
                 //Check deltas in order to fire or not Events
                 if (UpdateGreaterThanThreshold(token))
-                    OnScreenTokenUpdatedEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
+                    RaiseScreenTokenUpdatedEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
             }
 
             foreach(Cluster cluster in failedIdentifiedCluster)
             {
                 //Cluser Identification failed, need to report back to Cluster Manager
-                OnTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(cluster.Hash, false));
+                RaiseTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(cluster.Hash, false));
             }
 
             foreach(InternalToken token in succesfullyIdentifiedTokens)
             {
                 //Fire event token identified
-                OnTokenPlacedOnScreenEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
+                RaiseTokenPlacedOnScreenEvent(new ApplicationTokenEventArgs(new Token(token, ContinuousMeanSquare)));
 
                 //Notify ClusterManager cluster has been identified
-                OnTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(token.HashId, true));
+                RaiseTokenIdentifiedEvent(new InternalTokenIdentifiedEventArgs(token.HashId, true));
             }
 
             //Reset all buffers
@@ -284,31 +273,6 @@ namespace Touchables.TokenEngine
         #endregion
 
         #region Event Handlers
-
-        //private void OnClustersToIdentify(object sender, ClusterUpdateEventArgs e)
-        //{
-        //    foreach (Cluster cluster in e.GetClusters())
-        //    {
-        //        IdentifyCluster(cluster);
-        //    }
-        //}
-
-        //private void OnClustersMoved(object sender, ClusterUpdateEventArgs e)
-        //{
-        //    foreach (Cluster cluster in e.GetClusters())
-        //    {
-        //        UpdateClusterMoved(cluster);
-        //    }
-        //}
-
-        //private void OnClustersCancelled(object sender, ClusterUpdateEventArgs e)
-        //{
-        //    foreach (Cluster cluster in e.GetClusters())
-        //    {
-        //        CancelCluster(cluster);
-
-        //    }
-        //}
 
         private void OnClustersUpdated(object sender, ClustersUpdateEventArgs e)
         {
@@ -334,7 +298,7 @@ namespace Touchables.TokenEngine
 
         #region Event Launchers
 
-        private void OnTokenIdentifiedEvent(InternalTokenIdentifiedEventArgs e)
+        private void RaiseTokenIdentifiedEvent(InternalTokenIdentifiedEventArgs e)
         {
             EventHandler<InternalTokenIdentifiedEventArgs> handler;
 
@@ -348,7 +312,7 @@ namespace Touchables.TokenEngine
             }
         }
 
-        private void OnTokenCancelledEvent(InternalTokenCancelledEventArgs e)
+        private void RaiseTokenCancelledEvent(InternalTokenCancelledEventArgs e)
         {
             EventHandler<InternalTokenCancelledEventArgs> handler;
             lock (TokenCallBackLock)
@@ -362,7 +326,7 @@ namespace Touchables.TokenEngine
             }
         }
 
-        private void OnTokenPlacedOnScreenEvent(ApplicationTokenEventArgs e)
+        private void RaiseTokenPlacedOnScreenEvent(ApplicationTokenEventArgs e)
         {
             EventHandler<ApplicationTokenEventArgs> handler;
             List<Delegate> subscribers = new List<Delegate>();
@@ -383,7 +347,7 @@ namespace Touchables.TokenEngine
 
         }
 
-        private void OnScreenTokenUpdatedEvent(ApplicationTokenEventArgs e)
+        private void RaiseScreenTokenUpdatedEvent(ApplicationTokenEventArgs e)
         {
             EventHandler<ApplicationTokenEventArgs> handler;
             List<Delegate> subscribers = new List<Delegate>();
@@ -402,7 +366,7 @@ namespace Touchables.TokenEngine
             }
         }
 
-        private void OnTokenRemovedFromScreenEvent(ApplicationTokenEventArgs e)
+        private void RaiseTokenRemovedFromScreenEvent(ApplicationTokenEventArgs e)
         {
             EventHandler<ApplicationTokenEventArgs> handler;
             List<Delegate> subscribers = new List<Delegate>();

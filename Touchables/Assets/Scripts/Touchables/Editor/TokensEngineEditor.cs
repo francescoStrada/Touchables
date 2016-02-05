@@ -4,6 +4,7 @@
 
 using UnityEditor;
 using UnityEngine;
+using Touchables.TokenEngine;
 
 namespace Touchables.Editor
 {
@@ -15,32 +16,32 @@ namespace Touchables.Editor
 
         public override void OnInspectorGUI()
         {
-            TokensEngine tEngine = (TokensEngine)target;
+            TokensEngineProperties props = ((TokensEngine)target).GetPars();
 
             //DrawDefaultInspector();
 
             EditorGUILayout.BeginHorizontal();
-            tEngine.TokenType = EditorGUILayout.Popup("Token Type: ", tEngine.TokenType, tokenTypes, EditorStyles.popup);
+            props.Type = EditorGUILayout.Popup("Token Type: ", props.Type, tokenTypes, EditorStyles.popup);
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginVertical();
             GUILayout.Label("Operation Metrics", EditorStyles.boldLabel);
             EditorGUILayout.BeginHorizontal();
-            tEngine.MeanSquare = EditorGUILayout.Toggle("Mean Square", tEngine.MeanSquare);
+            props.MeanSquare = EditorGUILayout.Toggle("Mean Square", props.MeanSquare);
             //EditorGUIUtility.labelWidth = 80;
-            tEngine.ComputePixels = EditorGUILayout.Popup("Distances: ", tEngine.ComputePixels, distanceMetrics, GUILayout.ExpandWidth(true));
+            props.ComputePixels = EditorGUILayout.Popup("Distances: ", props.ComputePixels, distanceMetrics, GUILayout.ExpandWidth(true));
             EditorGUILayout.EndHorizontal();
-            tEngine.ContinuousMeanSquare = EditorGUILayout.Toggle("Continuous", tEngine.ContinuousMeanSquare);
+            props.ContinuousMeanSquare = EditorGUILayout.Toggle("Continuous", props.ContinuousMeanSquare);
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.BeginVertical();
             GUILayout.Label("Token Update Thresholds", EditorStyles.boldLabel);
-            tEngine.TranslationThr = EditorGUILayout.Slider("Translation", tEngine.TranslationThr, 0.1f, 5.0f);
-            tEngine.RotationThr = EditorGUILayout.Slider("Rotation", tEngine.RotationThr, 0.1f, 5.0f);
+            props.TranslationThr = EditorGUILayout.Slider("Translation", props.TranslationThr, 0.1f, 5.0f);
+            props.RotationThr = EditorGUILayout.Slider("Rotation", props.RotationThr, 0.1f, 5.0f);
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.BeginHorizontal();
-            tEngine.Target60FPS = EditorGUILayout.Toggle("Target 60FPS", tEngine.Target60FPS);
+            props.Target60FPS = EditorGUILayout.Toggle("Target 60FPS", props.Target60FPS);
             EditorGUILayout.EndHorizontal();
 
 

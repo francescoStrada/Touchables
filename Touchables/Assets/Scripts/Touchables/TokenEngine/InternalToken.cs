@@ -6,8 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Touchables.MultiTouchManager;
+using Touchables.TokenEngine.TokenTypes;
 using Touchables.Utils;
-using Touchables.Utils.Attributes;
 using UnityEngine;
 
 namespace Touchables.TokenEngine
@@ -251,7 +251,7 @@ namespace Touchables.TokenEngine
             }
             else
             {
-                Vector2 dataCoordinatesCM = new Vector2(ScreenUtils.PixelsToCm(dataCoordinates.x), ScreenUtils.PixelsToCm(dataCoordinates.y));
+                Vector2 dataCoordinatesCM = new Vector2(TokensEngine.PixelsToCm(dataCoordinates.x), TokensEngine.PixelsToCm(dataCoordinates.y));
                 xCoord = (dataCoordinatesCM.x - TokenManager.CurrentTokenType.DataMarkerOriginPositionCM) / TokenAttributes.TOKEN_DATA_MARKERS_STEP;
                 yCoord = (dataCoordinatesCM.y - TokenManager.CurrentTokenType.DataMarkerOriginPositionCM) / TokenAttributes.TOKEN_DATA_MARKERS_STEP;
             }

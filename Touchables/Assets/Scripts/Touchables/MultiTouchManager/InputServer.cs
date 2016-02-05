@@ -71,7 +71,7 @@ namespace Touchables.MultiTouchManager
             if (InternalTouches.Updated())
             {
                 // There has been at least one updated TouchInput from previous frame
-                OnInputsUpdatedEvent(new InputUpdateEventArgs("Successfull Update"));
+                RaiseInputsUpdatedEvent(new InputUpdateEventArgs("Successfull Update"));
             }
         }
 
@@ -79,7 +79,7 @@ namespace Touchables.MultiTouchManager
 
         #region Event Launcher
 
-        private void OnInputsUpdatedEvent(InputUpdateEventArgs e)
+        private void RaiseInputsUpdatedEvent(InputUpdateEventArgs e)
         {
             EventHandler<InputUpdateEventArgs> handler;
 

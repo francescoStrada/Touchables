@@ -11,52 +11,56 @@ namespace Touchables
     [AddComponentMenu("Touchable/ApplicationToken")]
     public class ApplicationToken : MonoBehaviour
     {
-        public int TokenClass;
-        public UnityEngine.Object Target;
+        public int TokenClass = -22;
+        public UnityEngine.Object Target = null;
 
-        public MonoBehaviour[] targetComponents;
-        public int selectedComponent;
+        public MonoBehaviour[] targetComponents = null;
+        public int selectedComponent = 0;
 
-        private ITokenEvents TokenFunction;
+        private ITokenEvents TokenFunction = null;
 
-        private event EventHandler<ApplicationTokenEventArgs> ApplicationTokenOnScreen;
-
-        public void OnTokenPlacedOnScreen(object sender, ApplicationTokenEventArgs e)
-        {
-            TokenFunction.OnTokenPlacedOnScreen(sender, e);
-        }
-
-        public void OnTokenRemovedFromScreen(object sender, ApplicationTokenEventArgs e)
-        {
-            TokenFunction.OnTokenRemovedFromScreen(sender, e);
-        }
-
-        public void OnTokenUpdated(object sender, ApplicationTokenEventArgs e)
-        {
-            TokenFunction.OnTokenUpdated(sender, e);
-        }
-
-        void OnEnable()
-        {
-            TokenFunction = targetComponents[selectedComponent] as ITokenEvents;
-            if (TokenFunction != null)
-            {
-                TokenManager.Instance.TokenPlacedOnScreen += OnTokenPlacedOnScreen;
-                TokenManager.Instance.ScreenTokenUpdated += OnTokenUpdated;
-                TokenManager.Instance.TokenRemovedFromScreen += OnTokenRemovedFromScreen;
-            }
-            
-        }
-
-        void OnDisable()
+        #region Event Handlers
+        public virtual void OnTokenPlacedOnScreen(object sender, ApplicationTokenEventArgs e)
         {
             if (TokenFunction != null)
-            {
+                TokenFunction.OnTokenPlacedOnScreen(sender, e);
+        }
+
+        public virtual void OnTokenRemovedFromScreen(object sender, ApplicationTokenEventArgs e)
+        {
+            if (TokenFunction != null)
+                TokenFunction.OnTokenRemovedFromScreen(sender, e);
+        }
+
+        public virtual void OnTokenUpdated(object sender, ApplicationTokenEventArgs e)
+        {
+            if (TokenFunction != null)
+                TokenFunction.OnTokenUpdated(sender, e);
+        }
+        #endregion
+
+        #region Unity Methods
+        protected void OnEnable()
+        {
+
+            TokenManager.Instance.TokenPlacedOnScreen += OnTokenPlacedOnScreen;
+            TokenManager.Instance.ScreenTokenUpdated += OnTokenUpdated;
+            TokenManager.Instance.TokenRemovedFromScreen += OnTokenRemovedFromScreen;
+
+            if (targetComponents != null)
+                TokenFunction = targetComponents[selectedComponent] as ITokenEvents;
+
+        }
+
+        protected void OnDisable()
+        {
                 TokenManager.Instance.TokenPlacedOnScreen -= OnTokenPlacedOnScreen;
                 TokenManager.Instance.ScreenTokenUpdated -= OnTokenUpdated;
-                TokenManager.Instance.TokenRemovedFromScreen -= OnTokenRemovedFromScreen;
-            }
-                
+                TokenManager.Instance.TokenRemovedFromScreen -= OnTokenRemovedFromScreen;                
         }
+
+        #endregion
+
+
     }
 }

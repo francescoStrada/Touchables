@@ -14,59 +14,52 @@ namespace Touchables
     [AddComponentMenu("Touchable/TokensEngine")]
     public class TokensEngine : MonoBehaviour
     {
-        public int TokenType;
-        public bool MeanSquare;
-        public int ComputePixels;
-        public float TranslationThr;
-        public float RotationThr;
-        public bool Target60FPS;
-        public bool ContinuousMeanSquare;
+        private static TokensEngineProperties _pars = new TokensEngineProperties();
+
+        public static TokensEngineProperties Pars { get {  return _pars; } }
+        #region Unity Methods
 
         void Awake()
         {
-            ClusterManager.Instance.Initialize();
-
-            switch (TokenType)
-            {
-                case 0:
-                    TokenManager.Instance.SetApplicationTokenType(new Token3x3());
-                    break;
-                case 1:
-                    TokenManager.Instance.SetApplicationTokenType(new Token4x4());
-                    break;
-                case 2:
-                    TokenManager.Instance.SetApplicationTokenType(new Token5x5());
-                    break;
-            }
-
+            // initializes TOken and Cluster managers
             TokenManager.Instance.Initialize();
-            TokenManager.Instance.SetClassComputeReferenceSystem(MeanSquare);
-            TokenManager.Instance.ContinuousMeanSquare = ContinuousMeanSquare;
 
-            if (ComputePixels == 0)
-                TokenManager.Instance.SetClassComputeDimensions(true);
-            else
-                TokenManager.Instance.SetClassComputeDimensions(false);
-
-
-            TokenManager.Instance.SetTokenUpdateTranslationThr(TranslationThr);
-            TokenManager.Instance.SetTokenUpdateRotationThr(RotationThr);
-
-            if (Target60FPS)
+            // forcing FPS to better deal with marker & touches on mobile devices
+            if (_pars.Target60FPS)
                 Application.targetFrameRate = 60;
 
         }
 
         void Update()
-        {
-            InputServer.Instance.Update();
-            InputManager.UpdateFingersCancelled();
+        {            
+            // chek touches and clusters them
+            ClusterManager.Instance.Update();
         }
 
         void OnDestroy()
         {
-            ClusterManager.Instance.Disable();
             TokenManager.Instance.Disable();
         }
+
+        #endregion
+
+        #region Public Methods
+
+        public TokensEngineProperties GetPars()
+        {
+            return _pars;
+        }
+        public static float PixelsToCm(float pxValue)
+        {
+            return (pxValue / Screen.dpi) * 2.54f;
+        }
+
+
+        public static float CmToPixels(float cmValue)
+        {
+            return ((cmValue * Screen.dpi) / 2.54f);
+        }
+        #endregion
+
     }
 }

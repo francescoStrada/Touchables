@@ -34,10 +34,6 @@ namespace Touchables.MultiTouchManager
 
         #region Events
 
-        public event EventHandler<ClusterUpdateEventArgs> ClustersToIdentifyEvent;
-        public event EventHandler<ClusterUpdateEventArgs> ClustersMovedEvent;
-        public event EventHandler<ClusterUpdateEventArgs> ClustersCancelledEvent;
-
         public event EventHandler<ClustersUpdateEventArgs> ClustersUpdateEvent;
 
         #endregion
@@ -83,13 +79,12 @@ namespace Touchables.MultiTouchManager
         /// Initializes Cluster Manager with subscription to specific events
         /// </summary>
         /// <returns></returns>
-        public ClusterManager Initialize()
+        public void Initialize()
         {
             InputServer.Instance.InputUpdated += OnInputsUpdateEventHandler;
             TokenManager.Instance.TokenIdentifiedEvent += OnTokenIdentified;
             
             //TokenManager.Instance.TokenCancelledEvent += OnTokenCancelled;
-            return _instance;
         }
 
         /// <summary>
@@ -101,6 +96,15 @@ namespace Touchables.MultiTouchManager
             TokenManager.Instance.TokenIdentifiedEvent -= OnTokenIdentified;
 
             //TokenManager.Instance.TokenCancelledEvent -= OnTokenCancelled;
+        }
+
+        public void Update()
+        {
+            // first of all, remove finger touches previously identified as ended
+            // (to comply with unity standards of handling touches)
+            InputManager.UpdateFingersCancelled();
+
+            InputServer.Instance.Update();
         }
 
         public void SetClusterDistThreshold(float threshold)
@@ -348,25 +352,9 @@ namespace Touchables.MultiTouchManager
 
                 CheckClustersUpdated();
 
-                //THis part handles all cluster events seprarately
-                //if (IdentifiedClustersCancelled.Count > 0)
-                //    OnClustersCancelledEvent(new ClusterUpdateEventArgs("Moved cluster request", IdentifiedClustersCancelled.Values.ToList()));
-
-                //if (IdentifiedClustersMoved.Count > 0)
-                //{
-                //    Profiler.BeginSample("------ClusterManager : Cluster Moved Event");
-                //    OnClustersMovedEvent(new ClusterUpdateEventArgs("Moved cluster request", IdentifiedClustersMoved));
-                //    Profiler.EndSample();
-                //}
-
-
-                //if (ClustersToIdentify.Count > 0)
-                //    OnClusterToIdentifyEvent(new ClusterUpdateEventArgs("Identification request", ClustersToIdentify));
-
                 if (ClustersToIdentify.Count > 0 || IdentifiedClustersMoved.Count > 0 || IdentifiedClustersCancelled.Count > 0)
-                    OnClustersUpdateEvent(new ClustersUpdateEventArgs(ClustersToIdentify, IdentifiedClustersMoved, IdentifiedClustersCancelled.Values.ToList()));
+                    RaiseClustersUpdateEvent(new ClustersUpdateEventArgs(ClustersToIdentify, IdentifiedClustersMoved, IdentifiedClustersCancelled.Values.ToList()));
                     
-                
                 
                 //Get points which are touches and not markers
                 InputManager.SetFingersCancelled(InternalTouches.CancelledTouchBuffer.ToArray());
@@ -417,56 +405,8 @@ namespace Touchables.MultiTouchManager
 
         #region Event Launchers
 
-        private void OnClusterToIdentifyEvent(ClusterUpdateEventArgs e)
-        {
-            EventHandler<ClusterUpdateEventArgs> handler;
-
-            lock (ClusterUpdateLock)
-            {
-                handler = ClustersToIdentifyEvent;
-            }
-
-            if (handler != null)
-            {
-                handler(this, e);
-            }
-
-        }
-
-        private void OnClustersMovedEvent(ClusterUpdateEventArgs e)
-        {
-            EventHandler<ClusterUpdateEventArgs> handler;
-
-            lock (ClusterUpdateLock)
-            {
-                handler = ClustersMovedEvent;
-            }
-
-            if (handler != null)
-            {
-                handler(this, e);
-            }
-
-        }
-
-        private void OnClustersCancelledEvent(ClusterUpdateEventArgs e)
-        {
-            EventHandler<ClusterUpdateEventArgs> handler;
-
-            lock (ClusterUpdateLock)
-            {
-                handler = ClustersCancelledEvent;
-            }
-
-            if (handler != null)
-            {
-                handler(this, e);
-            }
-
-        }
-
        //This manages all cluster events simultaneously
-        private void OnClustersUpdateEvent(ClustersUpdateEventArgs e)
+        private void RaiseClustersUpdateEvent(ClustersUpdateEventArgs e)
         {
             EventHandler<ClustersUpdateEventArgs> handler;
 
@@ -485,26 +425,6 @@ namespace Touchables.MultiTouchManager
     }
 
     //TODO eventual customized event args for cancelled cluster in which put also the index of the touch point cancelled
-
-    internal class ClusterUpdateEventArgs : EventArgs
-    {
-        
-        private List<Cluster> _updatedClusters = new List<Cluster>();
-        private string _eventMsg;
-
-        internal ClusterUpdateEventArgs(string msg, List<Cluster> clusters)
-        {
-            _eventMsg = msg;
-            _updatedClusters = clusters;
-        }
-
-        internal string EventMsg { get { return _eventMsg; } }
-
-        internal List<Cluster> GetClusters()
-        {
-            return _updatedClusters;
-        }
-    }
 
     internal class ClustersUpdateEventArgs : EventArgs
     {
